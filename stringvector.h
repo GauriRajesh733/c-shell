@@ -18,5 +18,7 @@ void pushStringVector(const char* str, stringVector *v);
 // free allocated memory for given string vector
 void freeStringVector(stringVector *v);
 
+// print items in given string vector
+void printStringVector(stringVector *v);
 
 #endif

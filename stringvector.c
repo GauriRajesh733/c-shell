@@ -88,6 +88,12 @@ void freeStringVector(stringVector *v) {
 	free(v);
 }
 
+void printStringVector(stringVector *v) {
+	for (int i = 0; i < v->size; i++) {
+		printf("%s\n", v->data[i]);
+	}
+}
+
 /*
 int main() {
 	stringVector *v = createStringVector(10);
