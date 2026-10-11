@@ -9,5 +9,5 @@ enum TOKEN_STATE {
 };
 
 // return string vector of tokens given input
-stringVector* tokenize(const char *input);
+void tokenize(const char *input, stringVector *v);
 	

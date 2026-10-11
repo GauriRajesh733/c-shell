@@ -29,8 +29,7 @@ stringVector* createStringVector(int capacity) {
 		free(v);
 		return NULL;
 	}
-#include <stdio.h>
-#include <stdlib.h>
+
 	return v;
 }
 
@@ -43,7 +42,7 @@ void pushStringVector(const char *str, stringVector *v) {
 	}
 
 	// if size + 1 >= capacity, double size of array, copy over elements, and free old data
-	if (v->size >= v->capacity) {
+	if (v->size + 1 >= v->capacity) {
 			v->capacity *= 2;
 			
 			// check if vector capacity has not been set
@@ -66,6 +65,8 @@ void pushStringVector(const char *str, stringVector *v) {
 	v->data[v->size] = strdup(str);
 	v->size += 1;
 
+	// null terminate vector
+	v->data[v->size] = NULL;
 }	
 
 void freeStringVector(stringVector *v) {
@@ -89,9 +90,33 @@ void freeStringVector(stringVector *v) {
 }
 
 void printStringVector(stringVector *v) {
+	// verify given string vector is not NULL
+        if (v == NULL) {
+                fprintf(stderr, "Given string vector is NULL");
+                return;
+        }
+
 	for (int i = 0; i < v->size; i++) {
 		printf("%s\n", v->data[i]);
 	}
+}
+
+void clearStringVector(stringVector *v) {
+	// verify given string vector is not NULL
+        if (v == NULL) {
+                fprintf(stderr, "Given string vector is NULL");
+                return;
+        }
+
+	for (int i = 0; i < v->size; i++) {
+		if (v->data[i] != NULL) {
+			free(v->data[i]);
+			v->data[i] = NULL;
+		}
+	}
+
+	v->size = 0;
+	v->data[0] = NULL;
 }
 
 /*

@@ -13,8 +13,12 @@ static bool isWhiteSpace(char c) {
         return c == '\t' || c == ' ';
 }
 
-stringVector* tokenize(const char *input) {
-	stringVector *tokens = createStringVector(0);
+void tokenize(const char *input, stringVector *tokens) {
+	if (tokens == NULL) {
+		perror("Null tokens given to tokenizer");
+		return;
+	}
+
 	enum TOKEN_STATE state = SPACE;
 	char buffer[1024];
 	int bufferIdx = 0;
@@ -97,7 +101,7 @@ stringVector* tokenize(const char *input) {
                                         // reset buffer
                                         bufferIdx = 0;
                                 }
-				if (c == '\'' && singleQuote == 1) {
+				else if (c == '\'' && singleQuote == 1) {
 					buffer[bufferIdx] = '\0';
 					pushStringVector(buffer, tokens);
 					state = SPACE;
@@ -110,6 +114,8 @@ stringVector* tokenize(const char *input) {
 					buffer[bufferIdx++] = c;
                                 }
 				break;
+			
+			printf("Buffer: %s", buffer);
 		
 		}
 
@@ -121,8 +127,6 @@ stringVector* tokenize(const char *input) {
 		buffer[bufferIdx] = '\0';
 		pushStringVector(buffer, tokens);
 	}
-
-	return tokens;
 }
 
 /*

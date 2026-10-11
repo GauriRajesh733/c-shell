@@ -21,4 +21,7 @@ void freeStringVector(stringVector *v);
 // print items in given string vector
 void printStringVector(stringVector *v);
 
+// clear given string vector
+void clearStringVector(stringVector *v);
+
 #endif
