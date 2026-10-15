@@ -37,7 +37,14 @@ stringVector* createStringVector(int capacity) {
 void pushStringVector(const char *str, stringVector *v) {
 	// verify given string vector is not NULL
 	if (v == NULL) {
-		fprintf(stderr, "Given string vector is NULL");
+		fprintf(stderr, "Given string vector is NULL.");
+		return;
+	
+	}
+
+	// verify given string is not NULL
+	if (str == NULL) {
+		fprintf(stderr, "Given string is NULL.");
 		return;
 	}
 

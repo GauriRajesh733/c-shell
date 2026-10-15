@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include "pipevector.h"
 
 
 // process command given user input
@@ -22,7 +23,8 @@ void executePrevCommand(stringVector *tokens);
 void executeOutputRedirection(stringVector *tokens, char *outputFile);
 // execute input redirection
 void executeInputRedirection(stringVector *tokens, char *inputFile);
-
+// execute piping command
+void executePipingCommand(stringVector *pipeCommandTokens);
 
 int main() {
 	ssize_t read;
@@ -73,7 +75,12 @@ int main() {
 void processCommand(stringVector *tokens, stringVector *prevTokens) {
 	
 	// process command(s)
-	stringVector *currentCommand = createStringVector(0);
+	
+	// list of all commands
+	pipeVector **commandTokens = createPipeVector(1);
+
+	// list of tokens for current command
+	commandTokens[0] = createStringVector(0);
 
 	for (int i = 0; i < tokens->size; i++) {
 		
@@ -98,6 +105,10 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 
 			// increment index so file skipped
 			i++;
+		}
+		// piping command
+		else if (strcmp(token, "|") == 0 && ) {
+			pushStringVector(currentCommandTokens, commandTokens);
 		}
 		// add to current command
 		else if (strcmp(token, ";") != 0) {
@@ -126,7 +137,7 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 	else if (currentCommand->size != 0) {
 		executeCommand(currentCommand);
 	}
-
+	// TODO: free pipe vector commands
 	// free current command tokens
 	freeStringVector(currentCommand);
 }
@@ -159,6 +170,8 @@ void executeCommand(stringVector *tokens) {
         else {
                 wait(NULL);
         }
+The pipe operator | runs the command on the left hand side and the command on the right-hand side simultaneously and the standard output of the LHS command is redirected to the standard input of the RHS command. You do not have to support piping the output of built-ins.
+
 
 }
 
