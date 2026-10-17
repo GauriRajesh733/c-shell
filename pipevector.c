@@ -127,7 +127,7 @@ void printPipeVector(pipeVector *pipeVector) {
 	}
 }
 
-
+/*
 int main() {
 	// test pipe vector creation
 	pipeVector *v = createPipeVector(0);
@@ -156,4 +156,4 @@ int main() {
         printf("Pipe vector size: %d\n", v->size);
 
 	return 0;
-}
+}*/
