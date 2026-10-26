@@ -75,7 +75,6 @@ int main() {
 void processCommand(stringVector *tokens, stringVector *prevTokens) {
 	
 	// process command(s)
-	fprintf(stderr, "entering process command\n");
 	
 	// list of all commands
 	pipeVector *pipeCommands = createPipeVector(0);
@@ -91,13 +90,11 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 			// add current command to pipe and reset current command
                         if (currentCommand->size > 0) {
                                 pushPipeVector(currentCommand, pipeCommands);
-				fprintf(stderr, "adding current command to pipe vector\n");
 				currentCommand = createStringVector(0);
                         } 
 
 			// execute pipe commands
 			if (pipeCommands->size > 0) {
-				fprintf(stderr, "going to execute pipe commands\n");
 				executePipeCommands(pipeCommands, prevTokens);
 			}
 			
@@ -108,7 +105,6 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 		else if (strcmp(token, "|") == 0) {
 			// add current command to pipe and reset current command
                         if (currentCommand->size > 0) {
-				fprintf(stderr, "adding current command to pipe vector\n");
                                 pushPipeVector(currentCommand, pipeCommands);
 				currentCommand = createStringVector(0);
                         }
@@ -122,13 +118,11 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 
 	// add current command to pipe commands
 	if (currentCommand->size > 0) {
-		fprintf(stderr, "adding current command to pipe vector\n");
 		pushPipeVector(currentCommand, pipeCommands);
 	}
 
 	// execute pipe commands
 	if (pipeCommands->size > 0) {
-		fprintf(stderr, "going to execute pipe vector commands\n");
 		executePipeCommands(pipeCommands, prevTokens);
 	}
 	
@@ -151,10 +145,10 @@ bool commandIsBuiltIn(stringVector *tokens) {
 }
 
 void executeCommand(stringVector *tokens) {
-	fprintf(stderr, "inside execute command: going to execute command given tokesn\n");
 
 	if (execvp(tokens->data[0], tokens->data) == -1) {
 		fprintf(stderr, "%s: command not found.", tokens->data[0]);
+		exit(1);
 	}
 }
 
@@ -192,16 +186,10 @@ void executePrevCommand(stringVector *tokens) {
 	}
 	printf("\n");
 
-	// execute built in command
-	if (commandIsBuiltIn(tokens)) {
-		stringVector *prevTokens = createStringVector(0);
-		executeBuiltInCommand(tokens, prevTokens);
-		freeStringVector(prevTokens);
-	}
-	// execute non built in command
-	else {
-		executeCommand(tokens);
-	}
+	// process command again in case of sequencing or piping
+	stringVector *prevTokens = createStringVector(0);
+        processCommand(tokens, prevTokens);
+	freeStringVector(prevTokens);
 }
 
 void executeOutputRedirection(stringVector *tokens, char *outputFile) {	
@@ -290,8 +278,6 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 	if (pipeCommands->size == 0) {
 		return;
 	}
-
-	fprintf(stderr, "start execute pipe commands: going to process pipe vector commands, there are %d commands\n", pipeCommands->size);
 	
 	// execute series of pipe commands
 	
@@ -306,10 +292,8 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 
 	// iterate through tokens one command at a time in pipeCommands
 	for (int i = 0; i < pipeCommands->size; i++) {
-		fprintf(stderr, "starting to loop through pipe commands\n");
 
 		if (pipeCommands->commands[i] == NULL) {
-			fprintf(stderr, "execute pipe command: skipping command since none\n");
 			continue;
 		}
 
@@ -318,7 +302,6 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 		
 		// pipe if not last command
 		if (i != pipeCommands->size - 1) {
-			fprintf(stderr, "going to create pipe\n");
 
 			if (pipe(fd) != 0) {
 				perror("pipe command failed.");
@@ -335,7 +318,6 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 		int pid = fork();
 
 		if (pid < 0) {
-			perror("forking in pipe command failed.");
 			freePipeVector(pipeCommands);
 			exit(EXIT_FAILURE);
 		}
@@ -358,7 +340,6 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 
 			// redirect output of this process
 			if (i != pipeCommands->size - 1) {
-				fprintf(stderr, "piping: redirecting output of this process\n");
 				// close read pipe
 				close(readFd);
 
@@ -376,18 +357,13 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 			// assemble current command tokens
 			stringVector *currentCommand = createStringVector(0);
 			
-			fprintf(stderr, "there are %d tokens in current command to process", tokens->size);
-
 			// iterate through tokens in command
 			for (int j = 0; j < tokens->size; j++) {
 				char *token = tokens->data[j];
 
-
-				fprintf(stderr, "processing token %d in current command\n", j);	
 				// output redirection
 				if (strcmp(token, ">") == 0 && j == tokens->size - 2) {
 					char *outputFile = strdup(tokens->data[j + 1]);
-					fprintf(stderr, "child process: going to execute output redirection\n");
 					executeOutputRedirection(currentCommand, outputFile);
 					free(outputFile);
 					
@@ -400,7 +376,6 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 				// input redirection
 				else if (strcmp(token, "<") == 0 && j == tokens->size - 2) {
 					char *inputFile = strdup(tokens->data[j + 1]);
-					fprintf(stderr, "child process: going to execute input redirection\n");
                         		executeInputRedirection(currentCommand, inputFile);
                         		free(inputFile);
 
@@ -412,40 +387,37 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 				}
 				// output redirection but no file
 				else if (strcmp(token, ">") == 0) {
-					fprintf(stderr, "no file provided for output redirection command.");
+					fprintf(stderr, "no file provided for output redirection command.\n");
 					clearStringVector(currentCommand);
 					break;
 					
 				}
 				// input redirection but no file
 				else if (strcmp(token, "<") == 0) {
-					fprintf(stderr, "no file provided for input redirection command.");
+					fprintf(stderr, "no file provided for input redirection command.\n");
 					clearStringVector(currentCommand);
 					break;
 				}
+
+				// add token to current command
+				pushStringVector(token, currentCommand);
+
 				// execute built in command
-				else if (commandIsBuiltIn(currentCommand)) {
-					fprintf(stderr, "going to execute built in command\n");
+				if (commandIsBuiltIn(currentCommand)) {
 					executeBuiltInCommand(currentCommand, prevTokens);
 					clearStringVector(currentCommand);
-					break;
-				}
-				// add token to current command
-				else {
-					fprintf(stderr, "\ngoing to add token to command\n");
-					pushStringVector(token, currentCommand);
-					fprintf(stderr, "added token to command\n");
+					// exit successfully
+					exit(0);
 				}
 			}
 			
-			fprintf(stderr, "done processing all tokens in current command\n");
-
 			// execute non-empty command
 			if (currentCommand->size != 0) {
-				fprintf(stderr, "actually going to pipe vector execute: going to execute command\n");
 				executeCommand(currentCommand);
 			}
 
+
+			// free memory if execvp error occured and process not wiped out
 
 			// free current command tokens
 			freeStringVector(currentCommand);
@@ -457,7 +429,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 			freeStringVector(prevTokens);
 
 			// exit child process so next pipe command not processed
-			exit(0);
+			exit(1);
 		}
 
 		// if not last command update prev file descriptor and write end of pipe

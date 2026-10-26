@@ -55,16 +55,16 @@ void pushPipeVector(stringVector *tokens, pipeVector *pipeVector) {
 		// check if pipe vector capacity has not been set
 		if (pipeVector->capacity == 0) {
 			pipeVector->capacity = 1;
-			stringVector **newCommands = realloc(pipeVector->commands, pipeVector->capacity * sizeof(stringVector *));
-
-			if (newCommands == NULL) {
-				perror("Resized commands array allocation in pipe vector failed.");
-				perror("Failed to append commands array to pipe vector.");
-				return;
-			}
-
-			pipeVector->commands = newCommands;
 		}
+
+		stringVector **newCommands = realloc(pipeVector->commands, pipeVector->capacity * sizeof(stringVector *));
+		if (newCommands == NULL) {
+		 	perror("Resized commands array allocation in pipe vector failed.");
+                        perror("Failed to append commands array to pipe vector.");
+                        return;
+                }
+		
+		pipeVector->commands = newCommands;
 	}
 
 	// append tokens and increment size
@@ -154,6 +154,18 @@ int main() {
 	clearPipeVector(v);
 	printf("Pipe vector capacity: %d\n", v->capacity);
         printf("Pipe vector size: %d\n", v->size);
+	// test freeing pipe vector after adding 5 elements
+	for (int i = 0; i < 5; i++) {
+		stringVector *s3 = createStringVector(2);
+        	pushStringVector("string", s2);
+        	pushPipeVector(s3, v);
+	}
+
+	printf("Pipe vector capacity: %d\n", v->capacity);
+        printf("Pipe vector size: %d\n", v->size);
+
+	// free pipe vector
+	freePipeVector(v);	
 
 	return 0;
 }*/
