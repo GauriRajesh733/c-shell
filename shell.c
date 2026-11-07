@@ -157,7 +157,7 @@ void executeBuiltInCommand(stringVector *tokens, stringVector *prevTokens) {
 
 	// cd command
 	if (strcmp(command, "cd") == 0 && (tokens->size == 1 || chdir(tokens->data[1]) != 0)) {
-		fprintf(stderr, "cd: command failed.");
+		fprintf(stderr, "cd: command failed.\n");
 	}
 	// prev command
 	if (strcmp(command, "prev") == 0) {
@@ -288,43 +288,54 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 	int prevFd = -1;
 
 	// keep track of child processes
-	pid_t processes[pipeCommands->size];
+	pid_t *processes = calloc(pipeCommands->size, sizeof(pid_t));
 
 	// iterate through tokens one command at a time in pipeCommands
 	for (int i = 0; i < pipeCommands->size; i++) {
-
+		
 		if (pipeCommands->commands[i] == NULL) {
 			continue;
 		}
 
-		int readFd = -1;
-                int writeFd = -1;
-		
-		// pipe if not last command
-		if (i != pipeCommands->size - 1) {
-
-			if (pipe(fd) != 0) {
-				perror("pipe command failed.");
-				freePipeVector(pipeCommands);
-				exit(EXIT_FAILURE);
-			}
-			
-			// update read and write ends of pipe
-			readFd = fd[0];
-                	writeFd = fd[1];
-		}
-		
 		stringVector *tokens = pipeCommands->commands[i];
-		int pid = fork();
+		int builtInCommand = 0;
+
+		// intercept built in command
+		if (tokens->size > 0 && commandIsBuiltIn(tokens)) {
+			executeBuiltInCommand(tokens, prevTokens);
+			builtInCommand = 1;
+		}
+
+		int pid = 0;
+		
+		int readFd = -1;
+		int writeFd = -1;
+
+		// pipe if not last command and not built in command
+                if (builtInCommand != 1 && i != pipeCommands->size - 1) {
+                        if (pipe(fd) != 0) {
+                                perror("pipe command failed.");
+                                freePipeVector(pipeCommands);
+                                exit(EXIT_FAILURE);
+                        }
+
+                        // update read and write ends of pipe
+                        readFd = fd[0];
+                        writeFd = fd[1];
+                }
+	
+		// fork only if not built in command
+		if (builtInCommand != 1) {
+			pid = fork();
+			processes[i] = pid;
+		}
 
 		if (pid < 0) {
 			freePipeVector(pipeCommands);
 			exit(EXIT_FAILURE);
 		}
 
-		processes[i] = pid;
-
-		if (pid == 0) {
+		if (pid == 0 && builtInCommand == 0) {
 			// redirect output of previous process to input of this process
 			if (prevFd != -1) {
 				if (dup2(prevFd, STDIN_FILENO) < 0) {
@@ -445,6 +456,9 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 
 	// wait for all child processes to finish
         for (int k = 0; k < pipeCommands->size; k++) {
-		waitpid(processes[k], NULL, 0);
+		// only wait if child process actually created
+		if (processes[k] != 0) {
+			waitpid(processes[k], NULL, 0);
+		}
 	}
 }	
