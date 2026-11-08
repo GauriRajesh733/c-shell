@@ -25,6 +25,8 @@ void executeOutputRedirection(stringVector *tokens, char *outputFile);
 void executeInputRedirection(stringVector *tokens, char *inputFile);
 // execute pipe commands
 void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens);
+// execute source command 
+void executeSourceCommand(char *sourceFile);
 
 int main() {
 	ssize_t read;
@@ -90,7 +92,6 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 			// add current command to pipe and reset current command
                         if (currentCommand->size > 0) {
                                 pushPipeVector(currentCommand, pipeCommands);
-				currentCommand = createStringVector(0);
                         } 
 
 			// execute pipe commands
@@ -100,6 +101,11 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 			
 			// reset pipe commands and current command
 			clearPipeVector(pipeCommands);
+
+			// update prev command
+			freeStringVector(prevTokens);
+			prevTokens = currentCommand;
+			currentCommand = createStringVector(0);
 		}
 		// end of one side of pipe
 		else if (strcmp(token, "|") == 0) {
@@ -171,7 +177,14 @@ void executeBuiltInCommand(stringVector *tokens, stringVector *prevTokens) {
 		printf("prev: prints previous command line and executes it again without becoming the new command line.\n\n");
 		printf("help: explains all commands available in shell.\n\n");
 	}
-	// todo: other commands (ex. source)
+	// source command with file
+	if (strcmp(command, "source") == 0 && tokens->size > 1) {
+		executeSourceCommand(tokens->data[1]);
+	}
+	// source command without file
+	if (strcmp(command, "source") == 0 && tokens->size == 1) {
+		fprintf(stderr, "source command: no file provided\n");
+	}
 }
 
 void executePrevCommand(stringVector *tokens) {
@@ -214,7 +227,7 @@ void executeOutputRedirection(stringVector *tokens, char *outputFile) {
                 freeStringVector(tokens);
                 free(outputFile);
                 exit(1);
-                }
+        }
 	if (dup2(fd, STDOUT_FILENO) < 0) {
 		perror("output redirection: dup2 failed.\n");
                 freeStringVector(tokens);
@@ -461,4 +474,52 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 			waitpid(processes[k], NULL, 0);
 		}
 	}
-}	
+}
+
+void executeSourceCommand(char *sourceFile) {
+
+        // store tokens of all commands in file
+        stringVector* tokens = createStringVector(0);
+
+        // open file
+        int fd = open(sourceFile, O_RDONLY);
+
+        // file open failed
+        if (fd < 0) {
+                perror("source command: file open failed.\n");
+                exit(1);
+        }
+
+        // convert file descriptor into FILE * stream
+        FILE *stream = fdopen(fd, "r");
+
+        if (stream == NULL) {
+                perror("source command: file stream failed.\n");
+                exit(1);
+        }
+
+        // read file line by line
+        char *line = NULL;
+        size_t len = 0;
+        ssize_t nread;
+
+        if ((nread = getline(&line, &len, stream)) != -1) {
+                // tokenize current line in file
+                tokenize(line, tokens);
+
+                // add ; to separate commands
+                pushStringVector(";", tokens);
+        }
+
+        // getline allocates memory on heap so free line
+        free(line);
+        fclose(stream);
+
+        // process and execute commands
+        stringVector *prevTokens = createStringVector(0);
+        processCommand(tokens, prevTokens);
+
+        // free file tokens
+        freeStringVector(prevTokens);
+        freeStringVector(tokens);
+}
