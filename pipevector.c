@@ -54,7 +54,7 @@ void pushPipeVector(stringVector *tokens, pipeVector *pipeVector) {
 
 		// check if pipe vector capacity has not been set
 		if (pipeVector->capacity == 0) {
-			pipeVector->capacity = 1;
+			pipeVector->capacity = 2;
 		}
 
 		stringVector **newCommands = realloc(pipeVector->commands, pipeVector->capacity * sizeof(stringVector *));

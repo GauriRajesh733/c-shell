@@ -54,7 +54,7 @@ void pushStringVector(const char *str, stringVector *v) {
 			
 			// check if vector capacity has not been set
 			if (v->capacity == 0) {
-				v->capacity = 1;
+				v->capacity = 2;
 			}
 
 			char **newData = realloc(v->data, v->capacity * sizeof(char *));
@@ -71,7 +71,7 @@ void pushStringVector(const char *str, stringVector *v) {
 	// append string element and increment size
 	v->data[v->size] = strdup(str);
 	v->size += 1;
-
+	
 	// null terminate vector
 	v->data[v->size] = NULL;
 }	

@@ -99,13 +99,15 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 				executePipeCommands(pipeCommands, prevTokens);
 			}
 			
-			// reset pipe commands and current command
-			clearPipeVector(pipeCommands);
+			// update prev tokens
+			clearStringVector(prevTokens);
 
-			// update prev command
-			freeStringVector(prevTokens);
-			prevTokens = currentCommand;
+			for (int j = 0; j < currentCommand->size; j++) {
+				pushStringVector(currentCommand->data[j], prevTokens);	
+			}
+
 			currentCommand = createStringVector(0);
+			clearPipeVector(pipeCommands);
 		}
 		// end of one side of pipe
 		else if (strcmp(token, "|") == 0) {
@@ -114,6 +116,10 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
                                 pushPipeVector(currentCommand, pipeCommands);
 				currentCommand = createStringVector(0);
                         }
+			else {
+				fprintf(stderr, "pipe command: missing 1+ arguments.\n");
+				clearStringVector(currentCommand);
+			}
 		}
 		// normal token, redirect, or file name
 		else {
@@ -153,7 +159,7 @@ bool commandIsBuiltIn(stringVector *tokens) {
 void executeCommand(stringVector *tokens) {
 
 	if (execvp(tokens->data[0], tokens->data) == -1) {
-		fprintf(stderr, "%s: command not found.", tokens->data[0]);
+		fprintf(stderr, "%s: command not found.\n", tokens->data[0]);
 		exit(1);
 	}
 }
@@ -287,6 +293,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 		fprintf(stderr, "No pipe commands provided to execute.");
 		return;
 	}
+
 	// no pipe commands to execute
 	if (pipeCommands->size == 0) {
 		return;
@@ -315,6 +322,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 
 		// intercept built in command
 		if (tokens->size > 0 && commandIsBuiltIn(tokens)) {
+			// debug
 			executeBuiltInCommand(tokens, prevTokens);
 			builtInCommand = 1;
 		}
@@ -486,8 +494,8 @@ void executeSourceCommand(char *sourceFile) {
 
         // file open failed
         if (fd < 0) {
-                perror("source command: file open failed.\n");
-                exit(1);
+                fprintf(stderr, "source command: file open failed.\n");
+                return;
         }
 
         // convert file descriptor into FILE * stream
@@ -503,14 +511,14 @@ void executeSourceCommand(char *sourceFile) {
         size_t len = 0;
         ssize_t nread;
 
-        if ((nread = getline(&line, &len, stream)) != -1) {
-                // tokenize current line in file
+        while ((nread = getline(&line, &len, stream)) != -1) {
+		// tokenize current line in file
                 tokenize(line, tokens);
 
                 // add ; to separate commands
                 pushStringVector(";", tokens);
         }
-
+	
         // getline allocates memory on heap so free line
         free(line);
         fclose(stream);

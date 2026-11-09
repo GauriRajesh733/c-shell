@@ -10,7 +10,7 @@ static bool isSpecialChar(char c) {
 
 // return true if given char is whitespace
 static bool isWhiteSpace(char c) {
-        return c == '\t' || c == ' ';
+        return c == '\t' || c == ' ' || c == '\n';;
 }
 
 void tokenize(const char *input, stringVector *tokens) {
