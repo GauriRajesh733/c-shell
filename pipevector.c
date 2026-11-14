@@ -90,7 +90,10 @@ void clearPipeVector(pipeVector *pipeVector) {
 	}
 
 	pipeVector->size = 0;
-	pipeVector->commands[0] = NULL;
+
+        if(pipeVector->capacity > 0 && pipeVector->commands != NULL) {
+                pipeVector->commands[0] = NULL;
+        }
 }
 
 void freePipeVector(pipeVector *pipeVector) {

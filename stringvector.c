@@ -1,6 +1,6 @@
+#include <stdlib.h>
 #include "stringvector.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 stringVector* createStringVector(int capacity) {
@@ -123,7 +123,10 @@ void clearStringVector(stringVector *v) {
 	}
 
 	v->size = 0;
-	v->data[0] = NULL;
+
+	if(v->capacity > 0 && v->data != NULL) {
+		v->data[0] = NULL;
+	}
 }
 
 /*

@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include "pipevector.h"
+#include <errno.h>
 
 
 // process command given user input
@@ -27,6 +28,8 @@ void executeInputRedirection(stringVector *tokens, char *inputFile);
 void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens);
 // execute source command 
 void executeSourceCommand(char *sourceFile);
+// execute change directory command
+void executeChangeDirCommand(stringVector *tokens);
 
 int main() {
 	ssize_t read;
@@ -40,6 +43,11 @@ int main() {
 		
 		// get user input
 		read = getline(&line, &len, stdin);
+
+		if (read == -1) {
+			break;
+		}
+
 		line[read - 1] = '\0';	
 		
 		// exit (ctrl-d)
@@ -132,7 +140,10 @@ void processCommand(stringVector *tokens, stringVector *prevTokens) {
 	if (currentCommand->size > 0) {
 		pushPipeVector(currentCommand, pipeCommands);
 	}
-
+	// free current command if not using
+	else {
+		freeStringVector(currentCommand);
+	}
 	// execute pipe commands
 	if (pipeCommands->size > 0) {
 		executePipeCommands(pipeCommands, prevTokens);
@@ -168,15 +179,15 @@ void executeBuiltInCommand(stringVector *tokens, stringVector *prevTokens) {
 	char *command = tokens->data[0];
 
 	// cd command
-	if (strcmp(command, "cd") == 0 && (tokens->size == 1 || chdir(tokens->data[1]) != 0)) {
-		fprintf(stderr, "cd: command failed.\n");
+	if (strcmp(command, "cd") == 0) {
+		executeChangeDirCommand(tokens);
 	}
 	// prev command
 	if (strcmp(command, "prev") == 0) {
 		executePrevCommand(prevTokens);
 	}
 	// help command
-	if (strcmp(command, "help") == 0) {
+        if (strcmp(command, "help") == 0) {
 		printf("\n\nshell commands:\n\n");
 		printf("cd: change directory to path specified as argument.\n\n");
 		printf("source: execute script given filename as argument and each line of file as command.\n\n");
@@ -189,8 +200,32 @@ void executeBuiltInCommand(stringVector *tokens, stringVector *prevTokens) {
 	}
 	// source command without file
 	if (strcmp(command, "source") == 0 && tokens->size == 1) {
-		fprintf(stderr, "source command: no file provided\n");
+		fprintf(stderr, "source command: no file provided.\n");
 	}
+}
+
+void executeChangeDirCommand(stringVector *tokens) {
+	char *path = getenv("HOME");
+
+	// navigate to home directory if no path provided
+	if (tokens->size == 1) {
+		// home path not set
+        	if (path == NULL) {
+                	fprintf(stderr, "cd command: HOME not set.\n");
+                	return;
+        	}
+
+		pushStringVector(path, tokens);
+	}
+		
+	if (chdir(tokens->data[1]) != 0) {
+		if (errno == ENOENT) {
+			fprintf(stderr, "cd command: system cannot find path specified.\n");
+		}
+		else {
+			perror("cd command: failed.\n");
+		}
+        }
 }
 
 void executePrevCommand(stringVector *tokens) {
@@ -229,13 +264,13 @@ void executeOutputRedirection(stringVector *tokens, char *outputFile) {
 
         // file open failed
         if (fd < 0) {            
-		perror("output redirection: file open failed.\n");
+		perror("output redirection: file open failed.");
                 freeStringVector(tokens);
                 free(outputFile);
                 exit(1);
         }
 	if (dup2(fd, STDOUT_FILENO) < 0) {
-		perror("output redirection: dup2 failed.\n");
+		perror("output redirection: dup2 failed.");
                 freeStringVector(tokens);
                 free(outputFile);
                 exit(1);
@@ -337,6 +372,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
                         if (pipe(fd) != 0) {
                                 perror("pipe command failed.");
                                 freePipeVector(pipeCommands);
+				free(processes);
                                 exit(EXIT_FAILURE);
                         }
 
@@ -352,6 +388,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 		}
 
 		if (pid < 0) {
+			free(processes);
 			freePipeVector(pipeCommands);
 			exit(EXIT_FAILURE);
 		}
@@ -362,6 +399,7 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 				if (dup2(prevFd, STDIN_FILENO) < 0) {
 					perror("pipe command failed.");
 					freePipeVector(pipeCommands);
+					free(processes);
 					exit(EXIT_FAILURE);
 				}
 
@@ -372,13 +410,13 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 
 			// redirect output of this process
 			if (i != pipeCommands->size - 1) {
-				// close read pipe
 				close(readFd);
 
 				// redirect standard output
 				if (dup2(writeFd, STDOUT_FILENO) < 0) {
 					perror("pipe command failed.");
 					freePipeVector(pipeCommands);
+					free(processes);
 					exit(EXIT_FAILURE);
 				}
 				
@@ -482,12 +520,14 @@ void executePipeCommands(pipeVector *pipeCommands, stringVector *prevTokens) {
 			waitpid(processes[k], NULL, 0);
 		}
 	}
+
+	free(processes);
 }
 
 void executeSourceCommand(char *sourceFile) {
 
         // store tokens of all commands in file
-        stringVector* tokens = createStringVector(0);
+        stringVector *tokens = createStringVector(0);
 
         // open file
         int fd = open(sourceFile, O_RDONLY);
@@ -495,6 +535,7 @@ void executeSourceCommand(char *sourceFile) {
         // file open failed
         if (fd < 0) {
                 fprintf(stderr, "source command: file open failed.\n");
+		freeStringVector(tokens);
                 return;
         }
 
@@ -503,6 +544,7 @@ void executeSourceCommand(char *sourceFile) {
 
         if (stream == NULL) {
                 perror("source command: file stream failed.\n");
+		freeStringVector(tokens);
                 exit(1);
         }
 
